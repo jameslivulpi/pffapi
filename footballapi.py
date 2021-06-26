@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from datetime import date, timedelta
 import time
 from copy import deepcopy
@@ -16,12 +15,10 @@ class API:
         self.row = 1
         self.sheet, self.wb = self._PrepareExcel()
 
-
     def _PrepareExcel(self):
         wb = Workbook()
         sheet = wb.active
         sheet.title = "NFL"
-
         #create titles for each column
         sheet.cell(row=1, column=1).value='Player ID'
         sheet.cell(row=1, column=2).value='Player Name'
@@ -30,22 +27,18 @@ class API:
         sheet.cell(row=1, column=5).value='Draft Year'
         sheet.cell(row=1, column=6).value='Draft Round'
         sheet.cell(row=1, column=7).value='Draft Selection'
-
-
         sheet.cell(row=1, column=8).value='2020 Seasonal Offense Grade'
         sheet.cell(row=1, column=9).value='2020 Seasonal Defense Grade'
         sheet.cell(row=1, column=10).value='2020 Total Snap Count'
-
         sheet.cell(row=1, column=11).value='2019 Seasonal Offense Grade'
         sheet.cell(row=1, column=12).value='2019 Seasonal Defense Grade'
         sheet.cell(row=1, column=13).value='2019 Total Snap Count'
-
         sheet.cell(row=1, column=14).value='2020 Seasonal Offense Grade (NCAA)'
         sheet.cell(row=1, column=15).value='2020 Seasonal Defense Grade (NCAA)'
         sheet.cell(row=1, column=16).value='2019 Seasonal Offense Grade (NCAA)'
         sheet.cell(row=1, column=17).value='2019 Seasonal Defense Grade (NCAA)'
-
         return sheet, wb
+        
     @staticmethod
     def _CalcAge(birthdate):
         if birthdate is None:
@@ -55,13 +48,14 @@ class API:
 
     def GetPosition(self, playerid):
         self.headers = {'User-Agent': "hello","Authorization": "Bearer " + self.jwt_token}
-
-        res = requests.get(self.base_url+"nfl"+"/players/latest/", headers=self.headers, params = {"id": playerid})
+        res = requests.get(self.base_url+"nfl"+"/players/latest/",
+                            headers=self.headers, params = {"id": playerid})
         if res.status_code == 200:
             print(res.status_code)
             try:
                 for item in res.json()['rosters']:
-                    self.sheet.cell(row=self.row+1, column=4).value=item['position'] if "position" in item else "NA"
+                    self.sheet.cell(row=self.row+1, column=4).value=item['position'] \
+                                    if "position" in item else "NA"
                     for pick in item['drafts'] or item['draft']:
                         self.sheet.cell(row=self.row+1, column=5).value=pick['season']
                         if pick['season'] == 2021:
@@ -71,24 +65,23 @@ class API:
                             self.GetGrade(playerid, "ncaa", 2019)
             except:
                 print(f"no info for {playerid}")
-
-
         if res.status_code == 429:
             print(res.status_code)
             time.sleep(5)
             self.GetPosition(playerid)
 
-
     def GetGrade(self, playerid, league,  year):
         self.headers = {'User-Agent': "hello","Authorization": "Bearer " + self.jwt_token}
-        res = requests.get(self.base_url+f"grades/{league}/{year}/season_grade/", headers=self.headers)
+        res = requests.get(self.base_url+f"grades/{league}/{year}/season_grade/",
+                            headers=self.headers)
         if res.status_code == 200:
             tmp_list = []
             try:
                 for grade in res.json()['season_grade']:
                     if playerid == grade['player_id']:
                         try:
-                            if self.sheet.cell(row=self.row+1, column=4).value == "NA" or self.sheet.cell(row=self.row+1, column=4).value is None:
+                            if self.sheet.cell(row=self.row+1, column=4).value == "NA" or \
+                                    self.sheet.cell(row=self.row+1, column=4).value is None:
                                 self.sheet.cell(row=self.row+1, column=4).value = grade['position']
                         except:
                             pass
@@ -97,7 +90,6 @@ class API:
             except:
                 print("no season grade info for: ", playerid)
                 return
-
             if len(tmp_list) == 0:
                 return
 
@@ -107,7 +99,6 @@ class API:
             for x in tmp_list:
                 if x['week'] >= _max:
                     _max_dict = deepcopy(x)
-
             try:
                 if year == 2020 and league == "nfl":
                     self.sheet.cell(row=self.row+1, column=8).value=_max_dict['offense']
@@ -128,9 +119,6 @@ class API:
                     self.sheet.cell(row=self.row+1, column=14).value="N/A"
                 if year == 2019 and league == "ncaa":
                     self.sheet.cell(row=self.row+1, column=16).value="N/A"
-
-
-
             try:
                 if year == 2020 and league == "nfl":
 #                   print(_maddx_dict['offense_rank'])
@@ -150,26 +138,20 @@ class API:
                     self.sheet.cell(row=self.row+1, column=15).value="N/A"
                 if year == 2019 and league == "ncaa":
                     self.sheet.cell(row=self.row+1, column=17).value="N/A"
-
-            if year == 2020 and league == "nfl" or (league == "ncaa" and  self.sheet.cell(row=self.row+1, column=12).value is None):
+            if year == 2020 and league == "nfl" or (league == "ncaa" and
+                        self.sheet.cell(row=self.row+1, column=12).value is None):
                 self.sheet.cell(row=self.row+1, column=10).value=_max_dict['total_snaps']
-            if year == 2019 and league == "nfl" or (league == "ncaa" and  self.sheet.cell(row=self.row+1, column=17).value is None):
+            if year == 2019 and league == "nfl" or (league == "ncaa" and
+                        self.sheet.cell(row=self.row+1, column=17).value is None):
                 self.sheet.cell(row=self.row+1, column=13).value=_max_dict['total_snaps']
-
         elif res.status_code == 401:
             self.login()
             #retry current:
             self.GetGrade(playerid, league,  year)
-
-
-
         else:
             print(f"GetGrade returns status code {res.status_code}")
             time.sleep(5)
             self.GetGrade(playerid, league,  year)
-
-
-
 
     def login(self):
         login_header = {"x-api-key": self.api_key}
@@ -178,29 +160,25 @@ class API:
             print("Login success")
             self.jwt_token = res.json()['jwt']
 
-
     def run(self):
         self.headers = {'User-Agent': "bot 0.1","Authorization": "Bearer " + self.jwt_token}
-        res = requests.get(self.base_url+"nfl"+"/players/", headers=self.headers, params = {"page_size": 10000000})
+        res = requests.get(self.base_url+"nfl"+"/players/",
+                            headers=self.headers, params = {"page_size": 10000000})
         if res.status_code == 200:
             for item in res.json()['players']:
                 if not "retired" in item:
                     self.sheet.cell(row=self.row+1, column=1).value=item['id']
-                    self.sheet.cell(row=self.row+1, column=2).value=item['first_name'] + " " + item['last_name']
+                    self.sheet.cell(row=self.row+1, column=2).value=item['first_name'] + " " + \
+                                    item['last_name']
                     age = self._CalcAge(item['dob'])
                     self.sheet.cell(row=self.row+1, column=3).value=age
                     self.GetPosition(item['id'])
                     self.GetGrade(int(item['id']),"nfl", 2020)
                     self.GetGrade(int(item['id']), "nfl",  2019)
                     self.row += 1
-                    self.wb.save("nfl-bobby-test.xlsx")
-
-
-
+                    self.wb.save("nfl-book.xlsx")
 
 if __name__ == "__main__":
-    x = API()
-    x.login()
-#    #x.GetPosition(57905)
-#    x.GetGrade(143797, "ncaa", 2019)
-    x.run()
+    api = API()
+    api.login()
+    api.run()
